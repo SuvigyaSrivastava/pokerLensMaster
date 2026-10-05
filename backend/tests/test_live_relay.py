@@ -244,26 +244,26 @@ def test_missing_gemini_key_reports_fatal_error(monkeypatch):
         assert m["fatal"] and "GEMINI_API_KEY" in m["message"]
 
 
+def refused(client, url, **kw):
+    """Connection is accepted then closed with a code the browser can read."""
+    with client.websocket_connect(url, **kw) as ws:
+        with pytest.raises(WebSocketDisconnect) as e:
+            ws.receive_json()
+    return e.value.code
+
+
 def test_passcode_origin_and_capacity(monkeypatch):
     use(monkeypatch, FakeSession(), FakeSession())
     monkeypatch.setenv("DEMO_PASSCODE", "letmein")
     c = TestClient(main.app)
-    with pytest.raises(WebSocketDisconnect):
-        with c.websocket_connect("/ws/live"):
-            pass
-    with pytest.raises(WebSocketDisconnect):
-        with c.websocket_connect("/ws/live?code=wrong"):
-            pass
+    assert refused(c, "/ws/live") == 1008
+    assert refused(c, "/ws/live?code=wrong") == 1008
     with c.websocket_connect("/ws/live?code=letmein") as ws:
         collect_until(ws, lambda m: m["type"] == "status")
     monkeypatch.delenv("DEMO_PASSCODE")
-    with pytest.raises(WebSocketDisconnect):
-        with c.websocket_connect("/ws/live", headers={"origin": "https://evil.example"}):
-            pass
+    assert refused(c, "/ws/live", headers={"origin": "https://evil.example"}) == 1008
     monkeypatch.setattr(main, "_live_active", main.MAX_LIVE_SESSIONS)
-    with pytest.raises(WebSocketDisconnect):
-        with c.websocket_connect("/ws/live"):
-            pass
+    assert refused(c, "/ws/live") == 1013
 
 
 def test_config_builds_for_all_modes():

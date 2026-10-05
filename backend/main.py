@@ -256,19 +256,21 @@ _live_active = 0
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket):
     global _live_active
+    # Accept first, then close with a code: a refusal *before* accept shows up in browsers as an
+    # opaque 1006, which would make "wrong access code" look like "server down".
+    await ws.accept()
     origin = ws.headers.get("origin")
     if origin and "*" not in _origins and origin not in _origins:
-        await ws.close(code=1008)  # CORS doesn't cover WebSockets, so check the Origin ourselves
+        await ws.close(code=1008, reason="origin not allowed")  # CORS doesn't cover WebSockets
         return
     passcode = os.getenv("DEMO_PASSCODE", "")
     if passcode and not secrets.compare_digest(ws.query_params.get("code", ""), passcode):
-        await ws.close(code=1008)
+        await ws.close(code=1008, reason="bad access code")
         return
     if _live_active >= MAX_LIVE_SESSIONS:
-        await ws.close(code=1013)  # try again later
+        await ws.close(code=1013, reason="busy")  # try again later
         return
 
-    await ws.accept()
     _live_active += 1
     try:
         relay = LiveRelay(ws, ptt=ws.query_params.get("mode") == "ptt")
