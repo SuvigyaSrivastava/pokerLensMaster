@@ -7,10 +7,10 @@ PokerLens uses computer vision, Monte Carlo poker simulations, and voice synthes
 ## ⚡ Tech Stack
 
 - **Backend:** Python 3.11+, FastAPI, Uvicorn
-- **AI Vision & Coach:** Google Gemini 2.5 Flash (`google-generativeai`)
-- **Poker Math & Equity:** `treys` (3,000-iteration Monte Carlo engine)
+- **AI Vision & Coach:** Google Gemini 3.8 Flash (`google-generativeai`, override with `GEMINI_MODEL`)
+- **Poker Math & Equity:** `treys` (3,000-iteration Monte Carlo vs 1–8 random opponent hands)
 - **Frontend:** React 18, Vite, Tailwind CSS
-- **Voice Output:** Web Speech API (`window.speechSynthesis`)
+- **Voice Output:** Web Speech API (default), or ElevenLabs / Sarvam AI
 - **Voice Input:** Web Speech API (`SpeechRecognition` - Chrome)
 - **Deployment:** Render (Backend) + Vercel (Frontend) — 100% Free Tier
 
@@ -21,11 +21,17 @@ PokerLens uses computer vision, Monte Carlo poker simulations, and voice synthes
 ```
 PokerVision/
 ├── backend/
-│   ├── main.py               # FastAPI server and session management
+│   ├── main.py               # FastAPI endpoints, CORS, rate limiting
+│   ├── gemini_client.py      # Lazy Gemini client + config errors
 │   ├── vision.py             # Gemini Vision card detection
+│   ├── cards.py              # Card parsing / validation / street derivation
+│   ├── tracker.py            # Session store + debounced table-change detection
 │   ├── equity.py             # Treys Monte Carlo equity engine
 │   ├── coach.py              # Gemini coaching advice generator
+│   ├── tts.py                # ElevenLabs / Sarvam speech synthesis
+│   ├── tests/                # pytest suite (no network / API key needed)
 │   ├── requirements.txt      # Python dependencies
+│   ├── requirements-dev.txt  # pytest + httpx
 │   ├── .env.example          # Environment variables template
 │   └── .env                  # Local secret keys (gitignored)
 ├── frontend/
@@ -72,9 +78,16 @@ pip install -r requirements.txt
 # Configure Gemini API key
 copy .env.example .env
 # Edit .env and insert your GEMINI_API_KEY from https://aistudio.google.com
+# (never commit .env or put API keys in frontend code — Vite bundles them into the public JS)
 
 # Start backend server
 uvicorn main:app --reload --port 8000
+```
+
+Run the tests (no API key required):
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
 
 Verify backend:
@@ -112,6 +125,8 @@ Open `http://localhost:5173` in your browser.
    - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
 5. Environment Variables:
    - `GEMINI_API_KEY`: `<your_gemini_api_key>`
+   - `ALLOWED_ORIGINS`: `https://<your-app>.vercel.app` (CORS allow-list; defaults to localhost only)
+   - Optional: `GEMINI_MODEL`, `ELEVENLABS_API_KEY`, `SARVAM_API_KEY`
 6. Deploy and copy your Render URL (e.g. `https://pokerlens-api.onrender.com`).
 
 ### Deploy Frontend to Vercel (Free)

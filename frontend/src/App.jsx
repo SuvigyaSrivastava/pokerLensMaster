@@ -29,6 +29,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [capturedB64, setCapturedB64] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [opponents, setOpponents] = useState(1);
 
   // Live Auto-Agent Mode (Continuous Table Co-Pilot)
   const [isLiveMode, setIsLiveMode] = useState(true);
@@ -51,6 +52,7 @@ export default function App() {
 
   const activeAudioRef = useRef(null);
   const lastCardsRef = useRef(null);
+  const handleAnalyzeRef = useRef(null);
 
   // Keep lastCardsRef in sync with result
   useEffect(() => {
@@ -189,6 +191,7 @@ export default function App() {
         session_id: sessionId,
         is_live: isAutoLive,
         last_cards: lastCardsRef.current,
+        opponents,
         voice_engine: voiceConfig.engine,
         voice_api_key: activeApiKey,
         voice_id: activeVoiceId
@@ -219,9 +222,13 @@ export default function App() {
     }
   };
 
+  // Always point at the latest handleAnalyze so live frames never use stale
+  // voiceConfig / sessionId / opponents captured by an old render.
+  handleAnalyzeRef.current = handleAnalyze;
+
   const handleCaptureFrame = useCallback((b64, isAutoLive = false) => {
     if (isAutoLive) {
-      handleAnalyze(b64, true, '');
+      handleAnalyzeRef.current?.(b64, true, '');
     } else {
       setCapturedB64(b64);
       setError(null);
@@ -461,6 +468,21 @@ export default function App() {
                   }}
                   disabled={isAnalyzing}
                 />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-gray-300">
+                <label htmlFor="opponents">Opponents still in hand</label>
+                <select
+                  id="opponents"
+                  value={opponents}
+                  onChange={(e) => setOpponents(Number(e.target.value))}
+                  className="bg-[#0D1B0F] border border-[#2a452d] rounded-lg px-2 py-1 text-gray-100 outline-none focus:border-[#00C853]"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-gray-500">equity is vs random hands</span>
               </div>
 
               {/* Manual Trigger Button */}

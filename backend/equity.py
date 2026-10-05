@@ -1,67 +1,63 @@
-from treys import Card, Evaluator
 import random
+from typing import List
 
-def calculate_equity(hero_cards: list, board_cards: list, simulations: int = 3000) -> float:
+from treys import Card, Evaluator
+
+_ALL = [Card.new(r + s) for r in "23456789TJQKA" for s in "shdc"]
+_evaluator = Evaluator()
+
+
+def calculate_equity(
+    hero_cards: List[int],
+    board_cards: List[int],
+    simulations: int = 3000,
+    opponents: int = 1,
+) -> float:
     """
-    Monte Carlo equity calculation.
-    hero_cards: list of treys Card integers (2 cards)
-    board_cards: list of treys Card integers (0-5 cards)
-    Returns: float between 0.0 and 100.0
+    Monte Carlo equity (percent) of `hero_cards` against `opponents` random hands.
+    Ties split the pot (hero gets 1/(n_tied)). Returns 50.0 on invalid input.
+    hero_cards: 2 treys ints; board_cards: 0-5 treys ints.
     """
     try:
-        if not hero_cards or len(hero_cards) != 2:
+        opponents = max(1, min(8, int(opponents)))
+        if len(hero_cards) != 2 or len(board_cards) > 5 or simulations <= 0:
             return 50.0
 
-        evaluator = Evaluator()
+        known = set(hero_cards) | set(board_cards)
+        if len(known) != len(hero_cards) + len(board_cards):
+            return 50.0  # duplicate card -> impossible state
 
-        # Build deck excluding known cards
-        known = set(hero_cards + board_cards)
-        all_ranks = '23456789TJQKA'
-        all_suits = 'shdc'
-        full_deck = []
-        for r in all_ranks:
-            for s in all_suits:
-                try:
-                    c = Card.new(r + s)
-                    if c not in known:
-                        full_deck.append(c)
-                except Exception:
-                    pass
+        deck = [c for c in _ALL if c not in known]
+        need_board = 5 - len(board_cards)
+        need = need_board + 2 * opponents
+        if need > len(deck):
+            return 50.0
 
-        wins = 0
-        ties = 0
-
+        score = 0.0
+        valid = 0
         for _ in range(simulations):
-            deck_copy = full_deck.copy()
-            random.shuffle(deck_copy)
+            draw = random.sample(deck, need)
+            full_board = board_cards + draw[:need_board]
+            hero_score = _evaluator.evaluate(full_board, hero_cards)
 
-            # Fill board to 5 cards if needed
-            needed = max(0, 5 - len(board_cards))
-            sim_board = board_cards + deck_copy[:needed]
-            remaining = deck_copy[needed:]
+            best_opp = None
+            tied = 1
+            lost = False
+            rest = draw[need_board:]
+            for i in range(opponents):
+                opp = rest[2 * i: 2 * i + 2]
+                s = _evaluator.evaluate(full_board, opp)
+                if s < hero_score:  # lower is better in treys
+                    lost = True
+                    break
+                if s == hero_score:
+                    tied += 1
+            valid += 1
+            if not lost:
+                score += 1.0 / tied
 
-            # Opponent gets 2 random cards
-            if len(remaining) < 2:
-                continue
-            opp_hand = remaining[:2]
-
-            try:
-                hero_score = evaluator.evaluate(sim_board, hero_cards)
-                opp_score = evaluator.evaluate(sim_board, opp_hand)
-
-                # Lower score is better in treys (1 is royal flush)
-                if hero_score < opp_score:
-                    wins += 1
-                elif hero_score == opp_score:
-                    ties += 0.5
-            except Exception:
-                continue
-
-        if simulations == 0:
+        if valid == 0:
             return 50.0
-
-        total = wins + ties
-        equity = round((total / simulations) * 100, 1)
-        return max(0.0, min(100.0, equity))
+        return round(score / valid * 100, 1)
     except Exception:
         return 50.0

@@ -11,6 +11,7 @@ export const analyzeHand = ({
   session_id = '',
   is_live = false,
   last_cards = null,
+  opponents = 1,
   voice_engine = 'browser',
   voice_api_key = null,
   voice_id = null
@@ -22,6 +23,7 @@ export const analyzeHand = ({
       session_id,
       is_live,
       last_cards,
+      opponents,
       voice_engine,
       voice_api_key,
       voice_id

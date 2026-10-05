@@ -1,18 +1,10 @@
-import google.generativeai as genai
 import base64
+import binascii
 import json
 import re
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-model = genai.GenerativeModel(MODEL_NAME)
+from cards import normalize_detection
+from gemini_client import get_model
 
 CARD_DETECTION_PROMPT = """
 You are a poker card reader. Analyze this poker table image carefully.
@@ -36,7 +28,7 @@ Card notation rules:
 Street rules:
 - "preflop" if board is empty
 - "flop" if 3 board cards
-- "turn" if 4 board cards  
+- "turn" if 4 board cards
 - "river" if 5 board cards
 
 If you cannot clearly read a card, use "??" for that card.
@@ -47,47 +39,45 @@ Confidence: "high" | "medium" | "low"
 Return raw JSON only. Nothing else.
 """
 
-def detect_cards(image_b64: str) -> dict:
-    """
-    Takes base64-encoded JPEG image, returns card detection result dict.
-    Raises ValueError if response cannot be parsed.
-    """
-    # Strip data URL prefix if present
-    if "," in image_b64:
-        image_b64 = image_b64.split(",", 1)[1]
 
-    image_bytes = base64.b64decode(image_b64)
-
-    response = model.generate_content([
-        CARD_DETECTION_PROMPT,
-        {
-            "mime_type": "image/jpeg",
-            "data": base64.b64encode(image_bytes).decode("utf-8")
-        }
-    ])
-
-    raw = response.text.strip()
-
-    # Strip markdown fences if model adds them despite instructions
-    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
-    raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE)
+def _parse_json(raw: str) -> dict:
     raw = raw.strip()
-
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+    raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE).strip()
     try:
         result = json.loads(raw)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Could not parse Gemini response as JSON: {raw[:200]}") from e
-
-    # Validate required fields exist with defaults
-    if "hero_cards" not in result or not isinstance(result["hero_cards"], list):
-        result["hero_cards"] = []
-    if "board_cards" not in result or not isinstance(result["board_cards"], list):
-        result["board_cards"] = []
-    if "street" not in result:
-        result["street"] = "unknown"
-    if "confidence" not in result:
-        result["confidence"] = "low"
-    if "detection_notes" not in result:
-        result["detection_notes"] = ""
-
+    except json.JSONDecodeError:
+        # Last resort: grab the first {...} block
+        m = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+        if not m:
+            raise ValueError(f"Could not parse Gemini response as JSON: {raw[:200]}")
+        try:
+            result = json.loads(m.group(0))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Could not parse Gemini response as JSON: {raw[:200]}") from e
+    if not isinstance(result, dict):
+        raise ValueError("Gemini response was not a JSON object")
     return result
+
+
+def detect_cards(image_b64: str) -> dict:
+    """
+    Takes a base64-encoded JPEG (optionally a data URL) and returns a normalized
+    detection dict. Raises ValueError for bad input / unparseable output and
+    GeminiConfigError if Gemini isn't configured.
+    """
+    if "," in image_b64[:100]:
+        image_b64 = image_b64.split(",", 1)[1]
+
+    try:
+        image_bytes = base64.b64decode(image_b64, validate=False)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError("image_b64 is not valid base64") from e
+    if not image_bytes:
+        raise ValueError("image_b64 decoded to empty data")
+
+    model = get_model(json_output=True)
+    response = model.generate_content(
+        [CARD_DETECTION_PROMPT, {"mime_type": "image/jpeg", "data": image_bytes}]
+    )
+    return normalize_detection(_parse_json(response.text))

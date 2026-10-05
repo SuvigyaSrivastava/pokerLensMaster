@@ -19,6 +19,7 @@ def synthesize_speech(
     if not text or not text.strip():
         return None, "empty", "No text provided"
 
+    text = text.strip()[:600]  # cap cost / abuse
     clean_engine = (engine or "browser").lower()
 
     if clean_engine == "elevenlabs":

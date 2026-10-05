@@ -4,6 +4,12 @@ export default function VoiceInput({ onTranscript, disabled = false }) {
   const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+  const onTranscriptRef = useRef(onTranscript);
+
+  // Keep the newest callback without recreating the recognizer on every render
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   useEffect(() => {
     const SpeechRecognitionClass =
@@ -18,8 +24,8 @@ export default function VoiceInput({ onTranscript, disabled = false }) {
 
       recognition.onresult = (event) => {
         const transcript = event.results?.[0]?.[0]?.transcript;
-        if (transcript && onTranscript) {
-          onTranscript(transcript);
+        if (transcript && onTranscriptRef.current) {
+          onTranscriptRef.current(transcript);
         }
         setIsListening(false);
       };
@@ -43,7 +49,7 @@ export default function VoiceInput({ onTranscript, disabled = false }) {
         recognitionRef.current.abort();
       }
     };
-  }, [onTranscript]);
+  }, []);
 
   if (!isSupported) return null;
 

@@ -6,3 +6,4 @@ treys>=0.1.8
 pillow>=10.3.0
 python-multipart>=0.0.9
 pydantic>=2.7.1
+requests>=2.31.0
