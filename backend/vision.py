@@ -4,7 +4,7 @@ import json
 import re
 
 from cards import normalize_detection
-from gemini_client import get_model
+from gemini_client import generate
 
 CARD_DETECTION_PROMPT = """
 You are a poker card reader. Analyze this poker table image carefully.
@@ -76,8 +76,12 @@ def detect_cards(image_b64: str) -> dict:
     if not image_bytes:
         raise ValueError("image_b64 decoded to empty data")
 
-    model = get_model(json_output=True)
-    response = model.generate_content(
-        [CARD_DETECTION_PROMPT, {"mime_type": "image/jpeg", "data": image_bytes}]
+    from google.genai import types
+
+    text = generate(
+        [CARD_DETECTION_PROMPT, types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")],
+        json_output=True,
     )
-    return normalize_detection(_parse_json(response.text))
+    if not text:
+        raise ValueError("Vision model returned no text")
+    return normalize_detection(_parse_json(text))

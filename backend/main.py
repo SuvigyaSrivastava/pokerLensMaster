@@ -7,7 +7,10 @@ from collections import defaultdict, deque
 from typing import Any, Deque, Dict, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+import logging
+import secrets
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -17,11 +20,13 @@ from cards import known  # noqa: E402
 from coach import get_coaching  # noqa: E402
 from equity import calculate_equity  # noqa: E402
 from gemini_client import GeminiConfigError  # noqa: E402
+from live_relay import LiveRelay  # noqa: E402
 from tracker import SessionStore  # noqa: E402
 from tts import synthesize_speech  # noqa: E402
 from vision import detect_cards  # noqa: E402
 
-app = FastAPI(title="PokerLens API", version="1.1.0")
+app = FastAPI(title="PokerLens API", version="2.0.0")
+logging.basicConfig(level=logging.INFO)
 
 # Comma-separated list, e.g. "https://pokerlens.vercel.app,http://localhost:5173"
 _origins = [
@@ -239,3 +244,38 @@ def reset(req: ResetRequest):
 def get_history(session_id: str):
     session = store.peek(session_id)
     return {"history": session.history if session else []}
+
+
+# ---------------------------------------------------------------------------
+# Live co-pilot: browser mic + camera <-> Gemini Live (see live_relay.py)
+# ---------------------------------------------------------------------------
+MAX_LIVE_SESSIONS = int(os.getenv("MAX_LIVE_SESSIONS", "2"))
+_live_active = 0
+
+
+@app.websocket("/ws/live")
+async def ws_live(ws: WebSocket):
+    global _live_active
+    origin = ws.headers.get("origin")
+    if origin and "*" not in _origins and origin not in _origins:
+        await ws.close(code=1008)  # CORS doesn't cover WebSockets, so check the Origin ourselves
+        return
+    passcode = os.getenv("DEMO_PASSCODE", "")
+    if passcode and not secrets.compare_digest(ws.query_params.get("code", ""), passcode):
+        await ws.close(code=1008)
+        return
+    if _live_active >= MAX_LIVE_SESSIONS:
+        await ws.close(code=1013)  # try again later
+        return
+
+    await ws.accept()
+    _live_active += 1
+    try:
+        relay = LiveRelay(ws, ptt=ws.query_params.get("mode") == "ptt")
+        await relay.run()
+    finally:
+        _live_active -= 1
+        try:
+            await ws.close()
+        except Exception:
+            pass

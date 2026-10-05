@@ -1,6 +1,6 @@
 from typing import Optional
 
-from gemini_client import get_model
+from gemini_client import generate
 
 POKER_CONTEXT = """
 You are PokerLens — a sharp, real-time poker coach sitting alongside the player during a live game.
@@ -73,11 +73,7 @@ Player Query / Situation: "{player_ask}"
 
 Speak as the live voice coach in 2-3 decisive sentences:"""
 
-    response = get_model().generate_content(prompt)
-    try:
-        text = response.text.strip()
-    except ValueError:
-        text = ""  # response blocked / empty candidates
+    text = generate([prompt], max_output_tokens=300)
     if not text:
         raise RuntimeError("Gemini returned no coaching text")
     return text

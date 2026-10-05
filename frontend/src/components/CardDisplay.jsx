@@ -53,7 +53,7 @@ function renderCard(cardStr, index) {
   );
 }
 
-export default function CardDisplay({ cards }) {
+export default function CardDisplay({ cards, showConfidence = true }) {
   if (!cards) return null;
 
   const heroCards = cards.hero_cards || [];
@@ -72,6 +72,7 @@ export default function CardDisplay({ cards }) {
           </span>
         </div>
 
+        {showConfidence && (
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-gray-400">Detection:</span>
           <span
@@ -86,9 +87,10 @@ export default function CardDisplay({ cards }) {
             {confidence}
           </span>
         </div>
+        )}
       </div>
 
-      {confidence === 'low' && (
+      {showConfidence && confidence === 'low' && (
         <div className="bg-yellow-950/40 border border-yellow-700/50 text-yellow-300 text-xs px-3 py-1.5 rounded-md">
           ⚠️ Low detection confidence — check card lighting or angle.
         </div>
