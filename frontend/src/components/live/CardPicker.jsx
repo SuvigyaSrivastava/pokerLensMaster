@@ -3,7 +3,7 @@ import PlayingCard from './PlayingCard';
 import { Icon } from './ui';
 
 const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-const SUITS = [['s', '♠', 'text-fg'], ['h', '♥', 'text-[#FF6B6B]'], ['d', '♦', 'text-[#FF6B6B]'], ['c', '♣', 'text-fg']];
+const SUITS = [['s', '♠', 'text-fg'], ['h', '♥', 'text-coral'], ['d', '♦', 'text-coral'], ['c', '♣', 'text-fg']];
 
 // Bottom sheet: pick a rank, then a suit. Faster and less error-prone than typing "Qh Kd" at a table.
 export default function CardPicker({ title, hint, max, value, taken = [], onSave, onClose }) {
@@ -28,11 +28,11 @@ export default function CardPicker({ title, hint, max, value, taken = [], onSave
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <button aria-label="Close" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <button aria-label="Close" className="absolute inset-0 bg-fg/60" onClick={onClose} />
       <div className="relative w-full sm:max-w-md bg-ink-800 border border-line rounded-t-3xl sm:rounded-3xl p-5 safe-b animate-sheet">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold">{title}</h2>
+            <h2 className="font-display text-2xl leading-none">{title}</h2>
             <p className="text-xs text-fg-muted mt-0.5">{hint}</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="btn-ghost w-9 h-9 !rounded-full"><Icon name="x" size={16} /></button>
@@ -50,7 +50,7 @@ export default function CardPicker({ title, hint, max, value, taken = [], onSave
         <div className="grid grid-cols-7 gap-1.5">
           {RANKS.map((r) => (
             <button key={r} disabled={full} onClick={() => setRank(r === rank ? null : r)}
-              className={`h-11 rounded-xl text-sm font-semibold border transition disabled:opacity-30 ${rank === r ? 'bg-mint text-mint-ink border-mint' : 'bg-ink-600 border-line hover:bg-ink-500'}`}>
+              className={`h-11 rounded-xl text-sm font-semibold border transition disabled:opacity-30 ${rank === r ? 'bg-fg text-ink border-fg' : 'bg-ink-900 border-line hover:bg-ink-600'}`}>
               {r === 'T' ? '10' : r}
             </button>
           ))}
@@ -60,7 +60,7 @@ export default function CardPicker({ title, hint, max, value, taken = [], onSave
             const dead = !rank || full || used.has(`${rank}${k}`.toLowerCase());
             return (
               <button key={k} disabled={dead} onClick={() => add(k)}
-                className={`h-12 rounded-xl text-xl border border-line bg-ink-600 hover:bg-ink-500 transition disabled:opacity-25 ${color}`}>
+                className={`h-12 rounded-xl text-xl border border-line bg-ink-900 hover:bg-ink-600 transition disabled:opacity-25 ${color}`}>
                 {sym}
               </button>
             );

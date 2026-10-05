@@ -1,8 +1,8 @@
 import React from 'react';
 
 const SUIT = {
-  h: { s: '♥', c: 'text-[#E5484D]' },
-  d: { s: '♦', c: 'text-[#E5484D]' },
+  h: { s: '♥', c: 'text-[#C0321F]' },
+  d: { s: '♦', c: 'text-[#C0321F]' },
   s: { s: '♠', c: 'text-[#15171A]' },
   c: { s: '♣', c: 'text-[#15171A]' },
 };
@@ -28,7 +28,7 @@ export default function PlayingCard({ card, size = 'md', onClick, label }) {
   if (!p) {
     return (
       <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-label={label || 'Empty card slot'}
-        className={`${cls} shrink-0 border border-dashed border-white/15 bg-white/[0.02] grid place-items-center text-fg-dim ${onClick ? 'hover:border-mint/50 hover:text-mint transition' : ''}`}>
+        className={`${cls} shrink-0 border border-dashed border-fg/30 grid place-items-center text-fg-dim ${onClick ? 'hover:border-fg hover:text-fg transition' : ''}`}>
         <span className="text-base leading-none">{card && card.includes('?') ? '?' : '+'}</span>
       </Tag>
     );
@@ -36,7 +36,7 @@ export default function PlayingCard({ card, size = 'md', onClick, label }) {
   const suit = SUIT[p.suit] || { s: p.suit, c: 'text-[#15171A]' };
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-label={label || `${p.rank} ${p.suit}`}
-      className={`${cls} ${suit.c} shrink-0 bg-[#FAFAF7] shadow-[0_6px_16px_-6px_rgba(0,0,0,.8)] flex flex-col items-center justify-center leading-none font-bold animate-deal ${onClick ? 'hover:-translate-y-0.5 transition-transform' : ''}`}>
+      className={`${cls} ${suit.c} shrink-0 bg-white border border-fg/25 shadow-[0_2px_0_rgba(27,26,23,.12)] flex flex-col items-center justify-center leading-none font-bold animate-deal ${onClick ? 'hover:-translate-y-0.5 transition-transform' : ''}`}>
       <span className="tracking-tight">{p.rank}</span>
       <span className="text-[0.8em] -mt-0.5">{suit.s}</span>
     </Tag>

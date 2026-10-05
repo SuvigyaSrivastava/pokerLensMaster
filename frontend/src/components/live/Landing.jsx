@@ -54,20 +54,18 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden">
-      <div className="absolute inset-0 grid-bg [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" aria-hidden="true" />
-      <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[620px] h-[420px] rounded-full bg-mint/10 blur-[110px]" aria-hidden="true" />
 
       <div className="relative max-w-5xl mx-auto px-5 sm:px-8">
-        <header className="flex items-center justify-between h-16">
+        <header className="flex items-center justify-between h-16 border-b border-fg">
           <Logo />
-          <button onClick={onClassic} className="text-xs text-fg-muted hover:text-fg transition">Classic photo mode</button>
+          <button onClick={onClassic} className="text-xs text-fg-muted hover:text-fg underline underline-offset-4 decoration-fg/30 transition">Classic photo mode</button>
         </header>
 
         <main className="grid lg:grid-cols-[1.05fr_.95fr] gap-10 lg:gap-14 items-center pt-6 sm:pt-12 pb-16">
           <section className="animate-rise">
-            <span className="chip"><span className="w-1.5 h-1.5 rounded-full bg-mint" />Hands-free coach for a real table</span>
-            <h1 className="mt-5 text-[40px] leading-[1.05] sm:text-[52px] font-extrabold tracking-[-0.035em] max-w-[13ch] sm:max-w-[15ch]">
-              A poker coach that watches the table <span className="text-mint">with you.</span>
+            <p className="eyebrow !text-coral">A hands-free coach for a real table</p>
+            <h1 className="mt-4 font-display text-[52px] leading-[0.98] sm:text-[76px] tracking-[-0.02em] max-w-[13ch]">
+              A poker coach that watches the table <em className="text-coral">with you.</em>
             </h1>
             <p className="mt-5 text-[17px] leading-relaxed text-fg-muted max-w-xl">
               Prop your phone up and play. PokerLens sees your cards and the board, hears the bets, and tells you the right move out loud.
@@ -85,8 +83,8 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
             )}
 
             <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              <button onClick={onStart} disabled={busy} className="btn-primary h-14 px-7 text-base shadow-glow">
-                {busy ? <><span className="w-4 h-4 rounded-full border-2 border-mint-ink/30 border-t-mint-ink animate-spin" />Connecting…</> : <><Icon name="play" filled size={18} />{failed ? 'Try again' : 'Start session'}</>}
+              <button onClick={onStart} disabled={busy} className="btn-primary h-14 px-7 text-base">
+                {busy ? <><span className="w-4 h-4 rounded-full border-2 border-ink/30 border-t-ink animate-spin" />Connecting…</> : <><Icon name="play" filled size={18} />{failed ? 'Try again' : 'Start session'}</>}
               </button>
               <button onClick={onDemo} disabled={busy} className="btn-ghost h-14 px-6 text-base">Watch a demo hand</button>
             </div>
@@ -116,7 +114,7 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
                   <label className="block">
                     <span className="block text-sm font-medium mb-2">Access code <span className="text-fg-dim font-normal">(only if you were given one)</span></span>
                     <input type="password" autoComplete="off" value={settings.code} onChange={(e) => set('code')(e.target.value)} placeholder="Leave blank if none"
-                      className="w-full h-11 rounded-xl bg-ink-900 border border-line px-3 text-sm outline-none focus:border-mint/60 placeholder:text-fg-dim" />
+                      className="w-full h-11 rounded-xl bg-ink-900 border border-line px-3 text-sm outline-none focus:border-fg placeholder:text-fg-dim" />
                   </label>
                 </div>
               )}
@@ -130,12 +128,12 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
 
           <aside className="flex flex-col gap-4 animate-rise [animation-delay:80ms]">
             <Preview />
-            <ol className="panel divide-y divide-white/[0.06]">
+            <ol className="border-t border-fg divide-y divide-line">
               {STEPS.map(([icon, title, body], i) => (
-                <li key={title} className="flex gap-4 p-4">
-                  <span className="shrink-0 grid place-items-center w-10 h-10 rounded-xl bg-ink-600 border border-line text-mint"><Icon name={icon} /></span>
+                <li key={title} className="flex gap-4 py-4">
+                  <span className="num shrink-0 w-8 text-sm text-coral pt-1">0{i + 1}</span>
                   <div>
-                    <p className="text-sm font-semibold"><span className="num text-fg-dim mr-2">0{i + 1}</span>{title}</p>
+                    <p className="font-display text-2xl leading-tight">{title}</p>
                     <p className="text-sm text-fg-muted mt-1 leading-snug">{body}</p>
                   </div>
                 </li>
@@ -154,15 +152,15 @@ function Preview() {
     <div className="panel p-4 select-none" aria-hidden="true">
       <div className="flex items-center justify-between">
         <span className="eyebrow">The move</span>
-        <span className="chip !py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-mint animate-pulse" />Live</span>
+        <span className="eyebrow !text-mint">Live</span>
       </div>
       <div className="flex items-end justify-between mt-2">
-        <p className="text-5xl font-extrabold tracking-tight text-mint">Call</p>
-        <p className="num text-right text-sm text-fg-muted"><span className="text-fg text-xl font-bold">52%</span> to win<br />need 28%</p>
+        <p className="font-display text-6xl leading-none text-mint">Call</p>
+        <p className="num text-right text-sm text-fg-muted"><span className="text-fg text-xl font-semibold">52%</span> to win<br />need 28%</p>
       </div>
       <div className="relative h-2 rounded-full bg-ink-500 mt-3">
         <div className="absolute inset-y-0 left-0 rounded-full bg-mint" style={{ width: '52%' }} />
-        <div className="absolute -inset-y-1 w-0.5 bg-white rounded" style={{ left: '28%' }} />
+        <div className="absolute -inset-y-1 w-0.5 bg-fg rounded" style={{ left: '28%' }} />
       </div>
       <div className="flex items-center gap-1.5 mt-4">
         <PlayingCard card="Ah" size="sm" /><PlayingCard card="Kh" size="sm" />

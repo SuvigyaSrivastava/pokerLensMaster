@@ -94,10 +94,10 @@ function Header({ live, secs }) {
     : status === 'reconnecting' ? ['bg-amber animate-pulse', 'text-amber', 'Reconnecting']
     : ['bg-fg-dim animate-pulse', 'text-fg-muted', 'Connecting'];
   return (
-    <header className="sticky top-0 z-30 bg-ink/85 backdrop-blur border-b border-line">
+    <header className="sticky top-0 z-30 bg-ink border-b border-fg">
       <div className="max-w-6xl mx-auto h-14 px-3 sm:px-6 flex items-center gap-3">
         <Logo compact />
-        <span className="flex items-center gap-2 rounded-full bg-ink-700 border border-line pl-2.5 pr-3 py-1.5" aria-live="polite">
+        <span className="flex items-center gap-2 rounded-sm bg-ink-800 border border-line pl-2.5 pr-3 py-1.5" aria-live="polite">
           <span className="relative flex w-2 h-2">
             {status === 'live' && <span className={`absolute inset-0 rounded-full ${pill[0]} animate-ring`} />}
             <span className={`relative w-2 h-2 rounded-full ${pill[0]}`} />
@@ -130,18 +130,18 @@ function Stage({ live, step, ptt, held, hero, board }) {
   const chip = live.speaking
     ? <span className="chip !bg-mint !text-mint-ink !border-mint font-semibold"><Icon name="volume" size={13} />Coach speaking</span>
     : live.muted
-      ? <span className="chip !text-coral !border-coral/30"><Icon name="micOff" size={13} />Mic off</span>
-      : <span className="chip !bg-black/60 backdrop-blur !text-fg"><MicBars level={live.level} active={listening} className="text-mint" />{listening ? 'Listening' : 'Hold to talk'}</span>;
+      ? <span className="chip !bg-coral !border-coral !text-white"><Icon name="micOff" size={13} />Mic off</span>
+      : <span className="chip !bg-black/65 !border-white/20 !text-white"><MicBars level={live.level} active={listening} className="text-white" />{listening ? 'Listening' : 'Hold to talk'}</span>;
 
   return (
-    <section className={`relative overflow-hidden rounded-2xl bg-black border aspect-[16/10] lg:aspect-[4/3] transition-shadow ${live.speaking ? 'border-mint/60 shadow-glow' : 'border-line'}`}>
+    <section className={`relative overflow-hidden rounded-2xl bg-black border aspect-[16/10] lg:aspect-[4/3] transition-shadow ${live.speaking ? 'border-mint shadow-glow' : 'border-fg'}`}>
       {live.demo ? (
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#14503a_0%,#0b2a20_55%,#06140f_100%)] grid place-items-center">
           <div className="flex flex-col items-center gap-3 -mt-8">
             <div className="flex gap-1.5 min-h-[52px]">{board.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>
             <div className="flex gap-1.5 min-h-[52px] rotate-[-3deg]">{hero.map((c) => <PlayingCard key={c} card={c} size="sm" />)}</div>
           </div>
-          <span className="absolute top-3 right-3 chip !bg-black/50">Simulated</span>
+          <span className="absolute top-3 right-3 chip !bg-black/50 !border-white/20 !text-white">Simulated</span>
         </div>
       ) : (
         <video ref={live.attachVideo} playsInline muted autoPlay className="absolute inset-0 w-full h-full object-cover" />
@@ -151,12 +151,12 @@ function Stage({ live, step, ptt, held, hero, board }) {
 
       {flash && (
         <div className="absolute inset-x-0 top-14 flex justify-center animate-rise">
-          <span className="flex items-center gap-2 rounded-full bg-mint text-mint-ink font-semibold text-sm px-4 py-2 shadow-glow"><Icon name="check" size={16} />{flash}</span>
+          <span className="flex items-center gap-2 rounded-sm bg-white text-fg font-semibold text-sm px-4 py-2"><Icon name="check" size={16} />{flash}</span>
         </div>
       )}
 
       <div className="absolute inset-x-0 bottom-0 p-3 pt-10 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
-        <div className="flex items-start gap-3" aria-live="polite">
+        <div className="flex items-start gap-3 text-white" aria-live="polite">
           {step.n > 0 && <span className="num shrink-0 grid place-items-center w-6 h-6 rounded-full bg-white text-black text-xs font-bold">{step.n}</span>}
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-tight">{step.title}</p>
@@ -176,7 +176,7 @@ function Verdict({ facts, state, ptt }) {
     return (
       <section className="panel p-5">
         <p className="eyebrow">The move</p>
-        <p className="mt-2 text-2xl font-bold tracking-tight text-fg-muted">{haveCards ? 'Working out the odds…' : 'Waiting for your cards'}</p>
+        <p className="mt-2 font-display text-4xl leading-none text-fg-muted">{haveCards ? 'Working out the odds…' : 'Waiting for your cards'}</p>
         <p className="mt-1.5 text-sm text-fg-dim leading-snug">
           {haveCards ? 'One moment.' : 'Your win chance, the price to call and the recommended move appear here as soon as your cards are read.'}
         </p>
@@ -198,9 +198,9 @@ function Verdict({ facts, state, ptt }) {
       </div>
 
       <div className="mt-1.5 flex items-end justify-between gap-4">
-        <p key={v.word} className={`text-[54px] leading-none font-extrabold tracking-[-0.04em] animate-rise ${tone.text}`}>{v.word}</p>
+        <p key={v.word} className={`font-display text-[76px] leading-[0.9] tracking-[-0.02em] animate-rise ${tone.text}`}>{v.word}</p>
         <p className="text-right leading-tight pb-1">
-          <span className="num block text-3xl font-bold">{eq.toFixed(0)}<span className="text-lg text-fg-muted">%</span></span>
+          <span className="num block text-3xl font-semibold">{eq.toFixed(0)}<span className="text-lg text-fg-muted">%</span></span>
           <span className="text-xs text-fg-muted">chance to win</span>
         </p>
       </div>
@@ -209,7 +209,7 @@ function Verdict({ facts, state, ptt }) {
       <div className="mt-4">
         <div className="relative h-2.5 rounded-full bg-ink-500">
           <div className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out ${tone.bg}`} style={{ width: `${eq}%` }} />
-          {facing && <div className="absolute -inset-y-1.5 w-[3px] rounded bg-white shadow-[0_0_0_2px_#111316]" style={{ left: `calc(${Math.min(99, need)}% - 1.5px)` }} />}
+          {facing && <div className="absolute -inset-y-1.5 w-[3px] rounded bg-fg shadow-[0_0_0_2px_#FBF9F4]" style={{ left: `calc(${Math.min(99, need)}% - 1.5px)` }} />}
         </div>
         <div className="flex justify-between mt-2 text-xs text-fg-muted">
           {facing
@@ -250,7 +250,7 @@ function Table({ state: s, live, isLive, onPick }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5" aria-label={`Street: ${s?.street || 'preflop'}`}>
           {STREETS.map((name, i) => (
-            <span key={name} className={`text-[11px] font-semibold uppercase tracking-wider px-1.5 sm:px-2 py-1 rounded-md transition ${i === street ? 'bg-fg text-ink' : i < street ? 'text-fg-muted' : 'text-fg-dim/60'}`}>{name}</span>
+            <span key={name} className={`text-[11px] font-semibold uppercase tracking-wider px-1.5 sm:px-2 py-1 rounded-md transition ${i === street ? 'bg-fg text-ink' : i < street ? 'text-fg-muted line-through decoration-fg/30' : 'text-fg-dim/70'}`}>{name}</span>
           ))}
         </div>
         <button disabled={off} onClick={live.newHand} className="btn-ghost h-8 px-3 text-xs whitespace-nowrap shrink-0"><Icon name="refresh" size={13} />New hand</button>
@@ -344,7 +344,7 @@ function Feed({ live }) {
       <div className="flex items-center gap-1 px-2 pt-2" role="tablist">
         {tabs.map(([k, label, n]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition ${tab === k ? 'bg-ink-600 text-fg' : 'text-fg-muted hover:text-fg'}`}>
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition ${tab === k ? 'bg-fg text-ink' : 'text-fg-muted hover:text-fg'}`}>
             {label}{n > 0 && <span className="num ml-1.5 text-[11px] text-fg-dim">{n}</span>}
           </button>
         ))}
@@ -354,7 +354,7 @@ function Feed({ live }) {
           live.log.length === 0 ? <Empty icon="ear" text="What the coach hears and says shows up here." /> : (
             <ul className="flex flex-col gap-2">
               {live.log.map((m) => (
-                <li key={m.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2 text-sm leading-snug animate-rise ${m.role === 'coach' ? 'self-start bg-mint/10 border border-mint/20 rounded-bl-md' : 'self-end bg-ink-600 border border-line text-fg-muted rounded-br-md'}`}>
+                <li key={m.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2 text-sm leading-snug animate-rise ${m.role === 'coach' ? 'self-start bg-ink-900 border border-fg/25' : 'self-end bg-ink-600 border border-line text-fg-muted'}`}>
                   <span className={`block text-[10px] font-semibold uppercase tracking-wider mb-0.5 ${m.role === 'coach' ? 'text-mint' : 'text-fg-dim'}`}>{m.role === 'coach' ? 'Coach' : 'Heard at the table'}</span>
                   {m.text}
                 </li>
@@ -365,7 +365,7 @@ function Feed({ live }) {
           live.tools.length === 0 ? <Empty icon="code" text="Every time the AI reads a card or logs a bet, the exact call it made is listed here." /> : (
             <ul className="flex flex-col">
               {live.tools.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 py-2 border-b border-white/[0.05] last:border-0 animate-rise">
+                <li key={t.id} className="flex items-start gap-3 py-2 border-b border-line last:border-0 animate-rise">
                   <span className={`mt-0.5 grid place-items-center w-5 h-5 rounded-full shrink-0 ${t.ok ? 'bg-mint/15 text-mint' : 'bg-coral/15 text-coral'}`}><Icon name={t.ok ? 'check' : 'x'} size={12} /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">{toolLabel(t.name)}{!t.ok && <span className="text-coral"> — rejected</span>}</p>
@@ -392,7 +392,7 @@ function Empty({ icon, text }) {
 }
 
 function Dock({ live, isLive, ptt, held, setHeld }) {
-  const side = 'btn-ghost flex-col !gap-1 h-16 w-[72px] text-[11px] font-medium shrink-0';
+  const side = 'btn-ghost !bg-ink-800 flex-col !gap-1 h-16 w-[72px] text-[11px] font-medium shrink-0';
   const press = () => { setHeld(true); live.pttStart(); };
   const release = () => { if (held) { setHeld(false); live.pttEnd(); } };
   return (
@@ -401,11 +401,11 @@ function Dock({ live, isLive, ptt, held, setHeld }) {
         <button disabled={!isLive || live.demo} onClick={live.scan} className={side} title="Look at the table again now"><Icon name="scan" size={20} />Rescan</button>
         {ptt ? (
           <button disabled={!isLive} onPointerDown={press} onPointerUp={release} onPointerLeave={release} onPointerCancel={release} onContextMenu={(e) => e.preventDefault()}
-            className={`btn flex-1 h-16 text-base touch-none ${held ? 'bg-mint text-mint-ink shadow-glow scale-[.98]' : 'bg-ink-600 text-fg border-2 border-mint/50'}`}>
+            className={`btn flex-1 h-16 text-base touch-none ${held ? 'bg-coral text-white scale-[.98]' : 'bg-fg text-ink'}`}>
             <Icon name="mic" size={20} />{held ? 'Listening… release to send' : 'Hold to talk'}
           </button>
         ) : (
-          <button disabled={!isLive} onClick={live.advise} className="btn-primary flex-1 h-16 text-base shadow-glow">
+          <button disabled={!isLive} onClick={live.advise} className="btn-primary flex-1 h-16 text-base">
             <Icon name="bolt" size={20} filled />What should I do?
           </button>
         )}

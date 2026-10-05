@@ -32,13 +32,13 @@ export function Icon({ name, size = 18, className = '', filled = false }) {
 export function Logo({ compact = false }) {
   return (
     <span className="inline-flex items-center gap-2 select-none">
-      <span className="grid place-items-center w-7 h-7 rounded-lg bg-ink-600 border border-line">
+      <span className="grid place-items-center w-7 h-7 rounded-md bg-fg">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="8" cy="8" r="5.2" fill="none" stroke="#2EE59D" strokeWidth="1.8" />
-          <circle cx="8" cy="8" r="1.7" fill="#2EE59D" />
+          <circle cx="8" cy="8" r="5.2" fill="none" stroke="#F4F0E8" strokeWidth="1.6" />
+          <circle cx="8" cy="8" r="1.8" fill="#E0492F" />
         </svg>
       </span>
-      {!compact && <span className="font-bold tracking-tight text-[15px]">PokerLens</span>}
+      {!compact && <span className="font-display text-[22px] leading-none">PokerLens</span>}
     </span>
   );
 }
@@ -62,7 +62,7 @@ export function Segmented({ value, onChange, options, disabled }) {
     <div className="grid grid-flow-col auto-cols-fr p-1 rounded-xl bg-ink-900 border border-line">
       {options.map(([k, label]) => (
         <button key={k} type="button" disabled={disabled} onClick={() => onChange(k)} aria-pressed={value === k}
-          className={`px-3 py-2 rounded-lg text-sm font-medium transition ${value === k ? 'bg-ink-500 text-fg shadow-card' : 'text-fg-muted hover:text-fg'}`}>
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition ${value === k ? 'bg-fg text-ink' : 'text-fg-muted hover:text-fg'}`}>
           {label}
         </button>
       ))}
@@ -77,7 +77,7 @@ export function Toggle({ checked, onChange, label, hint }) {
         <span className="block text-sm font-medium text-fg">{label}</span>
         {hint && <span className="block text-xs text-fg-muted mt-0.5 leading-snug">{hint}</span>}
       </span>
-      <span className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition ${checked ? 'bg-mint' : 'bg-ink-500'}`}>
+      <span className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition ${checked ? 'bg-fg' : 'bg-ink-500'}`}>
         <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
       </span>
     </button>
