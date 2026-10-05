@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { bytesToB64, createMicPipeline, createPlayer } from './audio';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const WS_BASE = API.replace(/^http/, 'ws').replace(/\/$/, '');
 
 // Scene-change detection on a tiny grayscale thumbnail (mean abs pixel diff, 0-255).
@@ -24,6 +24,18 @@ export function useLiveSession() {
 
   const R = useRef({}); // mutable session internals
   const idc = useRef(0);
+  const videoElRef = useRef(null); // the <video> may mount after start(), so it is attached separately
+
+  const attachVideo = useCallback((el) => {
+    videoElRef.current = el;
+    const stream = R.current.stream;
+    if (el && stream && el.srcObject !== stream) {
+      el.srcObject = stream;
+      el.muted = true;
+      el.playsInline = true;
+      el.play().catch(() => {});
+    }
+  }, []);
 
   const send = useCallback((obj) => {
     const ws = R.current.ws;
@@ -43,7 +55,7 @@ export function useLiveSession() {
         r.ws.close();
       }
     } catch (e) {}
-    if (r.videoEl) r.videoEl.srcObject = null;
+    if (videoElRef.current) videoElRef.current.srcObject = null;
     R.current = {};
     setSpeaking(false);
     setLevel(0);
@@ -99,7 +111,7 @@ export function useLiveSession() {
         r.coachStarted = false;
         break;
       case 'tool':
-        setTools((prev) => [...prev.slice(-5), { id: ++idc.current, name: m.name, ok: m.ok, error: m.error }]);
+        setTools((prev) => [...prev.slice(-29), { id: ++idc.current, name: m.name, args: m.args, ok: m.ok, error: m.error, at: Date.now() }]);
         break;
       case 'notice':
         setNotice(m.message);
@@ -117,7 +129,7 @@ export function useLiveSession() {
   }, [cleanup]);
 
   const start = useCallback(
-    async ({ videoEl, mode = 'auto', code = '', fullDuplex = false }) => {
+    async ({ mode = 'auto', code = '', fullDuplex = false } = {}) => {
       if (R.current.ws) return;
       setNotice(null);
       setLog([]);
@@ -125,6 +137,7 @@ export function useLiveSession() {
       setState(null);
       setFacts(null);
       setLatency(null);
+      setMutedState(false);
       setStatus('starting');
 
       if (!window.isSecureContext && location.hostname !== 'localhost') {
@@ -145,13 +158,8 @@ export function useLiveSession() {
         return;
       }
 
-      const r = (R.current = { stream, videoEl, mode, fullDuplex, pttActive: false, muted: false });
-      if (videoEl) {
-        videoEl.srcObject = stream;
-        videoEl.muted = true;
-        videoEl.playsInline = true;
-        videoEl.play().catch(() => {});
-      }
+      const r = (R.current = { stream, mode, fullDuplex, pttActive: false, muted: false });
+      attachVideo(videoElRef.current);
       r.player = createPlayer(setSpeaking);
       r.player.unlock(); // inside the click gesture
 
@@ -190,9 +198,11 @@ export function useLiveSession() {
         cleanup();
         setStatus('closed');
         if (wasLive && (ev.code === 1008 || ev.code === 1006)) {
-          setNotice(ev.code === 1008 ? 'Access code rejected (or origin not allowed).' : 'Could not reach the server. Is the backend running / awake?');
+          setNotice(ev.code === 1008 ? 'The server refused the connection: wrong access code, or this site isn’t on its allowed list.' : 'Couldn’t reach the coach server. It may still be waking up — wait a few seconds and try again.');
         } else if (ev.code === 1013) {
           setNotice('Server is busy with another live session. Try again shortly.');
+        } else if (wasLive) {
+          setNotice('The connection to the coach dropped. Start again to reconnect.');
         }
       };
 
@@ -221,11 +231,12 @@ export function useLiveSession() {
         };
 
         r.grabNow = () => {
-          if (videoEl && videoEl.readyState >= 2) sendFrame(videoEl);
+          const v = videoElRef.current;
+          if (v && v.readyState >= 2) sendFrame(v);
         };
 
         r.frameTimer = setInterval(() => {
-          const v = videoEl;
+          const v = videoElRef.current;
           if (!v || v.readyState < 2) return;
           sctx.drawImage(v, 0, 0, 32, 24);
           const px = sctx.getImageData(0, 0, 32, 24).data;
@@ -258,7 +269,7 @@ export function useLiveSession() {
         }, 1000);
       }
     },
-    [cleanup, handleMessage, send]
+    [attachVideo, cleanup, handleMessage, send]
   );
 
   const advise = useCallback(() => {
@@ -289,7 +300,7 @@ export function useLiveSession() {
 
   return {
     status, state, facts, log, tools, notice, level, speaking, latency, muted,
-    start, stop, advise, scan, newHand, setField, pttStart, pttEnd, setMuted,
+    start, stop, attachVideo, advise, scan, newHand, setField, pttStart, pttEnd, setMuted,
     clearNotice: () => setNotice(null),
   };
 }
