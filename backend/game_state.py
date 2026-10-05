@@ -22,6 +22,7 @@ _ALL = [r + s for r in "23456789TJQKA" for s in "shdc"]
 _HERO_ALIASES = {"hero", "me", "i", "player", "myself", "my", "user", "you"}
 _ACTIONS = {"fold", "check", "call", "bet", "raise", "allin"}
 MAX_ACTIONS = 60
+MAX_HISTORY = 20
 
 
 def _err(msg: str) -> Dict[str, Any]:
@@ -48,6 +49,7 @@ class GameState:
     folded: bool = False
     small_blind: float = 0.0
     big_blind: float = 0.0
+    history: List[Dict[str, Any]] = field(default_factory=list)  # finished hands this session
     updated_at: float = field(default_factory=time.time)
 
     # ---------- derived ----------
@@ -72,6 +74,7 @@ class GameState:
             "small_blind": _num(self.small_blind),
             "big_blind": _num(self.big_blind),
             "recent_actions": self.actions[-8:],
+            "history": self.history[-8:],
         }
 
     def _touch(self) -> None:
@@ -82,8 +85,60 @@ class GameState:
         return {"ok": True, **extra, "state": self.snapshot()}
 
     # ---------- operations (each returns {"ok": bool, ...}) ----------
+    def _archive(self) -> None:
+        """Remember the hand that is ending, so the player can ask about it later."""
+        if len(self.hero) != 2:
+            return  # nothing worth remembering
+        self.history.append({
+            "hand": self.hand_number,
+            "hero_cards": list(self.hero),
+            "board_cards": list(self.board),
+            "reached": self.street,
+            "pot": _num(self.pot),
+            "hero_folded": self.folded,
+            "actions": [f"{a['actor'].replace('opp:', '')} {a['action']}" + (f" {a['amount']}" if a.get("amount") is not None else "")
+                        for a in self.actions[-12:]],
+        })
+        self.history = self.history[-MAX_HISTORY:]
+
+    def recall(self) -> Dict[str, Any]:
+        return {"ok": True, "current_hand": self.hand_number, "previous_hands": self.history[-5:]}
+
+    def restore(self, snap: Any) -> Dict[str, Any]:
+        """Rebuild state from a snapshot the browser kept (used after a dropped connection).
+        Every field goes through the normal validators, so a bad snapshot cannot corrupt the state."""
+        if not isinstance(snap, dict):
+            return _err("snapshot must be an object")
+        fresh = GameState()
+        try:
+            fresh.hand_number = max(1, min(int(snap.get("hand_number", 1)), 10_000))
+        except (TypeError, ValueError):
+            pass
+        steps = []
+        if snap.get("small_blind") or snap.get("big_blind"):
+            steps.append(fresh.set_blinds(snap.get("small_blind", 0), snap.get("big_blind", 0)))
+        if snap.get("hero_cards"):
+            steps.append(fresh.set_hero_cards(snap.get("hero_cards")))
+        if snap.get("board_cards"):
+            steps.append(fresh.set_board(snap.get("board_cards")))
+        if snap.get("opponents") is not None:
+            steps.append(fresh.set_opponents(snap.get("opponents")))
+        if snap.get("pot") is not None:
+            steps.append(fresh.set_pot(snap.get("pot")))
+        if snap.get("to_call"):
+            steps.append(fresh.set_to_call(snap.get("to_call")))
+        fresh.folded = bool(snap.get("hero_folded"))
+        hist = snap.get("history")
+        if isinstance(hist, list):
+            fresh.history = [h for h in hist if isinstance(h, dict)][-MAX_HISTORY:]
+        bad = [s["error"] for s in steps if not s.get("ok")]
+        self.__dict__.update(fresh.__dict__)
+        return self._ok(note="State restored.", skipped=bad)
+
     def new_hand(self) -> Dict[str, Any]:
-        self.hand_number += 1
+        self._archive()
+        if self.hero or self.board or self.actions:
+            self.hand_number += 1  # an untouched hand is not a hand: don't count it
         self.hero, self.board = [], []
         self.commits, self.actions = {}, []
         self.folded = False
@@ -262,19 +317,29 @@ def made_hand_label(hero: List[str], board: List[str]) -> str:
 
 
 def count_outs(hero: List[str], board: List[str]) -> Dict[str, Any]:
-    """Cards that would improve hero's hand category (ignores improvements that only help via the board)."""
+    """Cards that improve hero's hand category.
+
+    A card that merely pairs the board helps every player equally, so it only counts
+    when it also completes something of hero's own (a straight, flush or better).
+    """
     hero_t = [Card.new(c) for c in hero]
     board_t = [Card.new(c) for c in board]
     base_class = _EVAL.get_rank_class(_EVAL.evaluate(board_t, hero_t))
     known = set(hero) | set(board)
+    board_ranks = {c[0] for c in board}
+    hero_ranks = {c[0] for c in hero}
     outs = []
     for c in _ALL:
         if c in known:
             continue
         ct = Card.new(c)
         new_class = _EVAL.get_rank_class(_EVAL.evaluate(board_t + [ct], hero_t))
-        if new_class < base_class:  # lower class = stronger hand
-            outs.append(c)
+        if new_class >= base_class:  # lower class = stronger hand
+            continue
+        pairs_board_only = c[0] in board_ranks and c[0] not in hero_ranks
+        if pairs_board_only and new_class > 5:  # 5 = straight; pair/two pair/trips made by the board alone
+            continue
+        outs.append(c)
     n = len(outs)
     mult = 4 if len(board) == 3 else 2
     return {"count": n, "cards": outs[:20], "approx_hit_pct": min(100, n * mult), "rule": "rule of 4 (flop) / rule of 2 (turn)"}

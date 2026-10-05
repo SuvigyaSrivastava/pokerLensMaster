@@ -6,10 +6,11 @@ const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS = [['s', '♠', 'text-fg'], ['h', '♥', 'text-coral'], ['d', '♦', 'text-coral'], ['c', '♣', 'text-fg']];
 
 // Bottom sheet: pick a rank, then a suit. Faster and less error-prone than typing "Qh Kd" at a table.
-export default function CardPicker({ title, hint, max, value, taken = [], onSave, onClose }) {
+export default function CardPicker({ title, hint, max, value, taken = [], sizes, onSave, onClose }) {
   const [cards, setCards] = useState(value || []);
   const [rank, setRank] = useState(null);
   const full = cards.length >= max;
+  const valid = sizes ? sizes.includes(cards.length) : cards.length === 0 || cards.length === max;
   const used = new Set([...taken, ...cards].map((c) => c.toLowerCase()));
 
   useEffect(() => {
@@ -69,7 +70,9 @@ export default function CardPicker({ title, hint, max, value, taken = [], onSave
 
         <div className="grid grid-cols-[auto_1fr] gap-2 mt-5">
           <button onClick={() => { setCards([]); setRank(null); }} className="btn-ghost h-12 px-4 text-sm">Clear</button>
-          <button onClick={() => { onSave(cards); onClose(); }} className="btn-primary h-12 text-sm">Save cards</button>
+          <button disabled={!valid} onClick={() => { onSave(cards); onClose(); }} className="btn-primary h-12 text-sm">
+            {valid ? 'Save cards' : sizes && sizes.length > 1 ? 'Pick 3, 4 or 5 cards' : `Pick ${max} cards`}
+          </button>
         </div>
       </div>
     </div>

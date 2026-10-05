@@ -73,6 +73,9 @@ GIVING ADVICE
 - If hero cards are unknown, say so and ask the player to show them.
 - If the numbers look off, ask the player to confirm the pot and the amount to call.
 
+MEMORY
+- If the player asks about an earlier hand this session ("what did I have last hand?", "how did the last one go?"), call get_hand_history and answer from its result in one or two short sentences. Never guess past hands from memory.
+
 STYLE: calm, quick, confident, plain English. Never say you are an AI. Never read the whole state aloud unless asked."""
 
 
@@ -115,6 +118,9 @@ TOOL_DECLARATIONS = [
     {"name": "get_decision_facts",
      "description": "Get authoritative equity, pot odds, outs and a verdict hint. Call before any advice.",
      "parameters": _obj({})},
+    {"name": "get_hand_history",
+     "description": "Get the earlier hands of this session (hole cards, board, pot, actions). Call only when the player asks about a past hand.",
+     "parameters": _obj({})},
 ]
 
 TOOL_DISPATCH = {
@@ -126,8 +132,10 @@ TOOL_DISPATCH = {
     "set_opponents": lambda s, a: s.set_opponents(a.get("count")),
     "new_hand": lambda s, a: s.new_hand(),
     "get_decision_facts": lambda s, a: s.decision_facts(),
+    "get_hand_history": lambda s, a: s.recall(),
 }
-STATE_CHANGING = set(TOOL_DISPATCH) - {"get_decision_facts"}
+BLOCKING = {"get_decision_facts", "get_hand_history"}  # the model waits for these before it speaks
+STATE_CHANGING = set(TOOL_DISPATCH) - BLOCKING
 # how the model should react once a non-blocking tool finishes
 SCHEDULING_OK = {"set_hero_cards": "WHEN_IDLE"}  # speak the read-back; everything else stays silent
 SCHEDULING_ERR = {"set_hero_cards": "WHEN_IDLE"}
@@ -181,9 +189,10 @@ _FATAL_HINTS = ("api key", "api_key", "permission_denied", "unauthenticated", "n
 
 
 class LiveRelay:
-    def __init__(self, ws: WebSocket, ptt: bool = False) -> None:
+    def __init__(self, ws: WebSocket, ptt: bool = False, resume: bool = False) -> None:
         self.ws = ws
         self.ptt = ptt
+        self.resume = resume  # the browser is reconnecting mid-game: no greeting, it will send its snapshot
         self.state = GameState()
         self.handle: Optional[str] = None
         self.session = None
@@ -283,6 +292,11 @@ class LiveRelay:
             await self.apply_manual(msg.get("field"), msg.get("value"))
         elif t == "new_hand":
             self.state.new_hand()
+            await self.send_state()
+        elif t == "restore":
+            res = self.state.restore(msg.get("state"))
+            if not res.get("ok"):
+                await self.send({"type": "notice", "message": res.get("error", "Could not restore the hand.")})
             await self.send_state()
         elif t == "set_blinds":
             res = self.state.set_blinds(msg.get("small"), msg.get("big"))
@@ -408,7 +422,8 @@ class LiveRelay:
         for fc in calls:
             self.stats["tool_calls"] += 1
             name, args = fc.name, dict(fc.args or {})
-            if name == "get_decision_facts":
+            t0 = time.perf_counter()
+            if name in BLOCKING:
                 result = await asyncio.to_thread(run_tool, self.state, name, args)
                 payload: Dict[str, Any] = {"result": result}
                 resp = types.FunctionResponse(id=fc.id, name=name, response=payload)
@@ -424,7 +439,7 @@ class LiveRelay:
                 )
             log.info("tool %s(%s) -> ok=%s", name, args, result.get("ok"))
             await self.send({"type": "tool", "name": name, "args": args, "ok": bool(result.get("ok")),
-                             "error": result.get("error")})
+                             "error": result.get("error"), "ms": round((time.perf_counter() - t0) * 1000, 1)})
             responses.append(resp)
         await session.send_tool_response(function_responses=responses)
         if changed:
@@ -439,7 +454,7 @@ class LiveRelay:
                 await self.send({"type": "error", "message": "Connection idle, closing."})
                 break
             if now - self._started > MAX_SESSION_SECONDS:
-                await self.send({"type": "error", "message": "Demo session time limit reached."})
+                await self.send({"type": "error", "message": "Session time limit reached.", "retry": False})
                 break
         self.closed = True
         self._enqueue("_close", None)
@@ -466,7 +481,7 @@ class LiveRelay:
                         self._drain_inbound()
                         await self.send({"type": "status", "status": "live"})
                         await self.send_state()
-                        if first:
+                        if first and not self.resume:
                             await session.send_realtime_input(text=GREETING_PROMPT)
                         first = False
                         tasks = {

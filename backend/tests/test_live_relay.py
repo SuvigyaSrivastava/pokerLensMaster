@@ -272,3 +272,53 @@ def test_config_builds_for_all_modes():
             cfg = live_relay.build_config("h", ptt=ptt, proactive=pro)
             assert cfg.response_modalities and cfg.tools
             assert (cfg.realtime_input_config.automatic_activity_detection.disabled is True) == ptt
+
+
+def test_resume_skips_greeting_and_restores_snapshot(monkeypatch):
+    s = FakeSession()
+    use(monkeypatch, s)
+    snap = {"hand_number": 3, "hero_cards": ["Ah", "Kh"], "board_cards": ["Qh", "7h", "2c"], "pot": 1050, "to_call": 400, "opponents": 2}
+    with TestClient(main.app).websocket_connect("/ws/live?resume=1") as ws:
+        collect_until(ws, lambda m: m["type"] == "status" and m["status"] == "live")
+        ws.send_json({"type": "restore", "state": snap})
+        out = drain(ws)
+        st = [m for m in out if m["type"] == "state"][-1]["state"]
+        assert st["hero_cards"] == ["Ah", "Kh"] and st["street"] == "flop" and st["pot"] == 1050 and st["to_call"] == 400
+        assert st["hand_number"] == 3 and st["opponents"] == 2
+        facts = [m for m in out if m["type"] == "facts"][-1]["facts"]
+        assert facts and facts["required_equity_pct"] == 27.6
+    assert not any(k.get("text") == live_relay.GREETING_PROMPT for k in s.sent)
+
+
+def test_first_connection_greets(monkeypatch):
+    s = FakeSession()
+    use(monkeypatch, s)
+    with TestClient(main.app).websocket_connect("/ws/live") as ws:
+        collect_until(ws, lambda m: m["type"] == "status" and m["status"] == "live")
+        drain(ws)
+    assert any(k.get("text") == live_relay.GREETING_PROMPT for k in s.sent)
+
+
+def test_hand_history_tool_is_blocking_and_timed(monkeypatch):
+    s = FakeSession()
+    use(monkeypatch, s)
+    with TestClient(main.app).websocket_connect("/ws/live") as ws:
+        collect_until(ws, lambda m: m["type"] == "status" and m["status"] == "live")
+        ws.send_json({"type": "set", "field": "hero_cards", "value": ["As", "Ah"]})
+        ws.send_json({"type": "new_hand"})
+        drain(ws)
+        s.push(tool("get_hand_history", {}), sc(turn_complete=True))
+        out = drain(ws)
+        t = next(m for m in out if m["type"] == "tool")
+        assert t["name"] == "get_hand_history" and t["ok"] and isinstance(t["ms"], (int, float))
+    res = s.tool_responses[0]
+    assert res.scheduling is None
+    assert res.response["result"]["previous_hands"][0]["hero_cards"] == ["As", "Ah"]
+
+
+def test_health_reports_readiness(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    body = TestClient(main.app).get("/health").json()
+    assert body["status"] == "ok" and body["live_ready"] is True and "version" in body
+    monkeypatch.delenv("GEMINI_API_KEY")
+    assert TestClient(main.app).get("/health").json()["live_ready"] is False

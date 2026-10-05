@@ -25,7 +25,7 @@ from tracker import SessionStore  # noqa: E402
 from tts import synthesize_speech  # noqa: E402
 from vision import detect_cards  # noqa: E402
 
-app = FastAPI(title="PokerLens API", version="2.0.0")
+app = FastAPI(title="PokerLens API", version="2.1.0")
 logging.basicConfig(level=logging.INFO)
 
 # Comma-separated list, e.g. "https://pokerlens.vercel.app,http://localhost:5173"
@@ -110,7 +110,9 @@ def _equity(cards: dict, opponents: int) -> float:
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "PokerLens API"}
+    # live_ready lets the web app say "the server is up but has no API key" before a session is started
+    return {"status": "ok", "service": "PokerLens API", "version": app.version,
+            "live_ready": bool(os.getenv("GEMINI_API_KEY"))}
 
 
 # Plain `def` (not async): the work below is blocking (Gemini, Monte Carlo,
@@ -273,7 +275,7 @@ async def ws_live(ws: WebSocket):
 
     _live_active += 1
     try:
-        relay = LiveRelay(ws, ptt=ws.query_params.get("mode") == "ptt")
+        relay = LiveRelay(ws, ptt=ws.query_params.get("mode") == "ptt", resume=ws.query_params.get("resume") == "1")
         await relay.run()
     finally:
         _live_active -= 1

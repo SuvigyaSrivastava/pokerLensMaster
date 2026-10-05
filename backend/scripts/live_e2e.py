@@ -1,7 +1,7 @@
 """
 End-to-end check of the Live coach against the REAL Gemini Live API.
 
-  python scripts/live_e2e.py [--vision] [--audio] [--proactive]
+  python scripts/live_e2e.py [--memory] [--vision] [--audio] [--proactive]
 
 Uses the production config/tools from live_relay.py. Scenarios:
   text   : greeting latency + tool calls + spoken advice
@@ -27,7 +27,7 @@ from google.genai import types  # noqa: E402
 
 from game_state import GameState  # noqa: E402
 from gemini_client import get_live_client, live_model_name  # noqa: E402
-from live_relay import SCAN_NUDGE, SCHEDULING_OK, build_config, run_tool  # noqa: E402
+from live_relay import BLOCKING, SCAN_NUDGE, SCHEDULING_OK, build_config, run_tool  # noqa: E402
 
 
 class Probe:
@@ -50,7 +50,7 @@ class Probe:
                             res = run_tool(self.state, fc.name, dict(fc.args or {}))
                             self.events.append((self.now(), "tool", (fc.name, dict(fc.args or {}), res.get("ok"))))
                             kw = {}
-                            if fc.name != "get_decision_facts":
+                            if fc.name not in BLOCKING:
                                 kw["scheduling"] = types.FunctionResponseScheduling[SCHEDULING_OK.get(fc.name, "SILENT")]
                             rs.append(types.FunctionResponse(id=fc.id, name=fc.name, response={"result": res}, **kw))
                         await self.session.send_tool_response(function_responses=rs)
@@ -171,6 +171,13 @@ async def main():
           await session.send_realtime_input(text="Coach, I'm holding the queen of hearts and king of diamonds. The pot is 100, 50 to call, two opponents. Record that and tell me what to do.")
           await p.settle(25, m)
           show("tools + spoken advice (text)", p.summary(m))
+
+        if "--memory" in sys.argv:
+            state.new_hand()
+            m = p.mark()
+            await session.send_realtime_input(text="Coach, what did I have last hand?")
+            await p.settle(20, m)
+            show("memory -> expect get_hand_history, then 'queen of hearts, king of diamonds'", p.summary(m))
 
         if do_vision:
             for label, nudge in [("vision, frames ONLY (no text)", None),

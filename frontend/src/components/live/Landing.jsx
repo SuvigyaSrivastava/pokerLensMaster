@@ -4,31 +4,38 @@ import { Icon, Logo, Segmented, Toggle } from './ui';
 import PlayingCard from './PlayingCard';
 
 const STEPS = [
-  ['camera', 'Show your cards', 'Hold your two cards up to the camera once. It reads them in about a second.'],
+  ['camera', 'Show your cards', 'Hold your two cards up to the camera once. It reads them back to you.'],
   ['ear', 'Play out loud', 'It listens to the bets and watches the flop, turn and river land. Nothing to tap.'],
-  ['bolt', 'Ask for the move', 'Say “what should I do?” and hear the answer, with the odds on screen.'],
+  ['bolt', 'Ask for the move', 'Say “what should I do?” and hear the answer. The odds are on screen if you want to check its work.'],
 ];
 
-// The free backend sleeps when idle. Wake it while the person reads, and say so, instead of failing on Start.
+// The free backend sleeps when idle. Wake it while the person reads, and name the exact problem
+// (asleep / no API key / this site not allowed) before they press Start instead of failing afterwards.
 function useServerStatus() {
-  const [s, setS] = useState('checking'); // checking | waking | ready | down
+  const [s, setS] = useState('checking'); // checking | waking | ready | nokey | blocked | down
   useEffect(() => {
     let dead = false;
     let timer;
     const began = Date.now();
     const slow = setTimeout(() => !dead && setS((p) => (p === 'checking' ? 'waking' : p)), 2500);
-    const ping = async () => {
+    const get = async (mode) => {
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 20000);
+      try { return await fetch(`${API}/health`, { mode, cache: 'no-store', signal: ctl.signal }); } finally { clearTimeout(t); }
+    };
+    const ping = async () => {
       try {
-        await fetch(`${API}/health`, { mode: 'no-cors', cache: 'no-store', signal: ctl.signal });
-        if (!dead) setS('ready');
+        const body = await (await get('cors')).json();
+        if (!dead) setS(body.live_ready === false ? 'nokey' : 'ready');
+        return;
+      } catch (e) { /* asleep, offline, or CORS refused: tell them apart below */ }
+      try {
+        await get('no-cors'); // reachable, but it would not let this page read the answer
+        if (!dead) setS('blocked');
       } catch (e) {
         if (dead) return;
         setS(Date.now() - began > 75000 ? 'down' : 'waking');
         timer = setTimeout(ping, 4000);
-      } finally {
-        clearTimeout(t);
       }
     };
     ping();
@@ -41,10 +48,12 @@ const SERVER = {
   checking: ['bg-fg-dim', 'Checking the coach server…'],
   waking: ['bg-amber animate-pulse', 'Waking the coach server — about 30 seconds'],
   ready: ['bg-mint', 'Coach server is ready'],
+  nokey: ['bg-coral', 'The server is up but has no AI key set (GEMINI_API_KEY)'],
+  blocked: ['bg-coral', 'The server is up but doesn’t allow this site yet (ALLOWED_ORIGINS)'],
   down: ['bg-coral', 'Can’t reach the coach server right now'],
 };
 
-export default function Landing({ settings, setSettings, onStart, onDemo, onClassic, notice, clearNotice, status }) {
+export default function Landing({ settings, setSettings, onStart, onDemo, notice, clearNotice, status }) {
   const server = useServerStatus();
   const [open, setOpen] = useState(false);
   const busy = status === 'starting' || status === 'connecting';
@@ -58,17 +67,17 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
       <div className="relative max-w-5xl mx-auto px-5 sm:px-8">
         <header className="flex items-center justify-between h-16 border-b border-fg">
           <Logo />
-          <button onClick={onClassic} className="text-xs text-fg-muted hover:text-fg underline underline-offset-4 decoration-fg/30 transition">Classic photo mode</button>
+          <span className="eyebrow">Practice &amp; home games</span>
         </header>
 
         <main className="grid lg:grid-cols-[1.05fr_.95fr] gap-10 lg:gap-14 items-center pt-6 sm:pt-12 pb-16">
           <section className="animate-rise">
             <p className="eyebrow !text-coral">A hands-free coach for a real table</p>
-            <h1 className="mt-4 font-display text-[52px] leading-[0.98] sm:text-[76px] tracking-[-0.02em] max-w-[13ch]">
-              A poker coach that watches the table <em className="text-coral">with you.</em>
+            <h1 className="mt-4 font-display text-[52px] leading-[0.98] sm:text-[76px] tracking-[-0.02em] max-w-[12ch]">
+              A poker coach in your ear, <em className="text-coral">not on a screen.</em>
             </h1>
             <p className="mt-5 text-[17px] leading-relaxed text-fg-muted max-w-xl">
-              Prop your phone up and play. PokerLens sees your cards and the board, hears the bets, and tells you the right move out loud.
+              Prop your phone up as the camera, put one earbud in, and keep your eyes on the table. PokerLens sees the cards, hears the bets and tells you the move out loud.
             </p>
 
             {notice && (
@@ -97,7 +106,7 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
               <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between px-4 py-3.5 text-sm">
                 <span className="font-medium">Session settings</span>
                 <span className="flex items-center gap-2 text-fg-muted text-xs">
-                  {settings.mode === 'ptt' ? 'Push-to-talk' : 'Hands-free'} · {settings.earbuds ? 'Earbuds' : 'Speaker'}
+                  {settings.mode === 'ptt' ? 'Push-to-talk' : 'Hands-free'} · {settings.earbuds ? 'Earbuds' : 'Speaker'}{settings.earStart ? ' · Screen off' : ''}
                   <Icon name="chevron" size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
                 </span>
               </button>
@@ -111,6 +120,8 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
                     </p>
                   </div>
                   <Toggle checked={settings.earbuds} onChange={set('earbuds')} label="I’m wearing earbuds" hint="Lets you interrupt the coach mid-sentence. Without earbuds the mic pauses while it speaks so it can’t hear itself." />
+                  <Toggle checked={settings.earStart} onChange={set('earStart')} label="Start with the screen off" hint="Runs by ear: the screen goes dark and one tap anywhere asks for the move. You can bring the screen back at any time." />
+                  <Toggle checked={settings.sounds} onChange={set('sounds')} label="Sound cues" hint="A soft tone when the board is read or a bet is heard, so you know it registered without looking." />
                   <label className="block">
                     <span className="block text-sm font-medium mb-2">Access code <span className="text-fg-dim font-normal">(only if you were given one)</span></span>
                     <input type="password" autoComplete="off" value={settings.code} onChange={(e) => set('code')(e.target.value)} placeholder="Leave blank if none"
@@ -121,7 +132,7 @@ export default function Landing({ settings, setSettings, onStart, onDemo, onClas
             </div>
 
             <p className="mt-5 text-xs text-fg-dim max-w-xl leading-relaxed">
-              You’ll be asked for camera and microphone access. Video and audio are streamed to the AI model for the session and aren’t saved by PokerLens.
+              You’ll be asked for camera and microphone access; without a camera it runs by voice alone. Video and audio are streamed to the AI model for the session and aren’t saved by PokerLens. Everyone at the table should know it’s listening.
               Built for practice and home games — most card rooms don’t allow electronic aids.
             </p>
           </section>

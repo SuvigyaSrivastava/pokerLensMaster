@@ -19,3 +19,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Scratch output from tooling
+Claude outputs/
+frontend/qa-shots/

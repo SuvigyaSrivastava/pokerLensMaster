@@ -15,6 +15,7 @@ export function parseCard(card) {
 }
 
 const SIZES = {
+  xs: 'w-7 h-10 rounded-md text-[12px]',
   sm: 'w-9 h-[52px] rounded-lg text-[15px]',
   md: 'w-[38px] h-[54px] rounded-lg text-[16px] sm:w-[52px] sm:h-[74px] sm:rounded-[10px] sm:text-[21px]',
   pick: 'w-[52px] h-[74px] rounded-[10px] text-[21px]',

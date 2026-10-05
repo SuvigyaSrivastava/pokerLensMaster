@@ -125,6 +125,31 @@ export function createPlayer(onSpeaking) {
         if (!active.size) onSpeaking && onSpeaking(false);
       };
     },
+    // Earcons: short tones that confirm an event without a screen (card read, bet heard, link lost/back).
+    cue(kind) {
+      const NOTES = { read: [[660, 0], [990, 0.09]], heard: [[520, 0]], ask: [[440, 0]], drop: [[330, 0], [220, 0.12]], back: [[440, 0], [660, 0.1]] };
+      const seq = NOTES[kind];
+      if (!seq) return;
+      try {
+        const c = ensure();
+        const t0 = c.currentTime + 0.01;
+        seq.forEach(([freq, at]) => {
+          const o = c.createOscillator();
+          const g = c.createGain();
+          o.type = 'sine';
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.0001, t0 + at);
+          g.gain.exponentialRampToValueAtTime(0.09, t0 + at + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.11);
+          o.connect(g);
+          g.connect(c.destination);
+          o.start(t0 + at);
+          o.stop(t0 + at + 0.13);
+        });
+        // keep the half-duplex mic gate closed while the tone plays so the model never hears it
+        busyUntil = Math.max(busyUntil, performance.now() + 380);
+      } catch (e) {}
+    },
     stop() {
       active.forEach((s) => {
         try {

@@ -89,3 +89,43 @@ def test_verdict_thresholds():
 
 def test_facts_without_hero_cards():
     assert GameState().decision_facts()["ok"] is False
+
+
+def test_history_remembers_finished_hands():
+    g = GameState()
+    g.new_hand()                       # no cards were seen: nothing to remember
+    assert g.history == []
+    g.set_hero_cards(["As", "Kd"]); g.set_board(["7c", "2d", "9s"]); g.set_pot(120)
+    g.record_action("ravi", "bet", 60)
+    g.new_hand()
+    h = g.recall()["previous_hands"]
+    assert len(h) == 1 and h[0]["hero_cards"] == ["As", "Kd"] and h[0]["reached"] == "flop"
+    assert h[0]["pot"] == 180 and h[0]["actions"] == ["ravi bet 60"]
+    assert g.snapshot()["history"][0]["hand"] == 1 and g.hand_number == 2 and g.hero == []
+
+
+def test_restore_rebuilds_state_and_rejects_bad_fields():
+    g = GameState()
+    g.set_hero_cards(["Ah", "Kh"]); g.set_board(["Qh", "7h", "2c"]); g.set_pot(1050); g.set_to_call(400); g.set_opponents(2)
+    snap = g.snapshot()
+    f = GameState()
+    r = f.restore(snap)
+    assert r["ok"] and r["skipped"] == []
+    for k in ("hero_cards", "board_cards", "street", "pot", "to_call", "opponents", "hand_number"):
+        assert f.snapshot()[k] == snap[k], k
+    bad = GameState()
+    r = bad.restore({"hero_cards": ["Ah", "Ah"], "board_cards": ["Qh", "7h"], "pot": 50, "opponents": 99})
+    assert r["ok"] and len(r["skipped"]) == 3
+    assert bad.hero == [] and bad.board == [] and bad.pot == 50 and bad.opponents == 1
+    assert not GameState().restore("nope")["ok"]
+
+
+def test_outs_ignore_cards_that_only_pair_the_board():
+    from game_state import count_outs
+    # nut flush draw + two overcards: 9 hearts + 3 aces + 3 kings = 15 (2h pairs the board but makes the flush)
+    o = count_outs(["Ah", "Kh"], ["Qh", "7h", "2c"])
+    assert o["count"] == 15 and "2h" in o["cards"] + ["2h"] and "Qs" not in o["cards"]
+    # pocket pair: two set outs, and board-pairing cards are not outs
+    assert count_outs(["8s", "8d"], ["Kc", "7h", "2d"])["count"] == 2
+    # set on the flop: any board pair makes a full house, and the case 8 makes quads -> 3 + 3 + 1 = 7
+    assert count_outs(["8s", "8d"], ["8c", "Kh", "2d"])["count"] == 7

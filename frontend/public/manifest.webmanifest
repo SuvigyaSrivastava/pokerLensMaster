@@ -1,0 +1,11 @@
+{
+  "name": "PokerLens",
+  "short_name": "PokerLens",
+  "description": "A hands-free poker coach that watches and listens to a real table.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F0E8",
+  "theme_color": "#F4F0E8",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

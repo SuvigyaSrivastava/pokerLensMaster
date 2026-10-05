@@ -18,6 +18,10 @@ const PATHS = {
   alert: <><path d="M12 4 3 19h18z" /><path d="M12 10v4M12 16.5v.5" /></>,
   volume: <><path d="M4 10v4h3l5 4V6l-5 4z" /><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" /></>,
   code: <path d="m9 7-5 5 5 5M15 7l5 5-5 5" />,
+  flip: <><path d="M4 9a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M9.5 12.5a2.6 2.6 0 0 1 4.6-1.6M14.5 13.5a2.6 2.6 0 0 1-4.6 1.6M14.3 9.6v1.5h-1.5M9.7 16.4v-1.5h1.5" /></>,
+  screenOff: <><rect x="7" y="3" width="10" height="18" rx="2.2" /><path d="M4 4l16 16" /></>,
+  send: <path d="M5 12h13M12.5 6.5 18 12l-5.5 5.5" />,
+  history: <><circle cx="12" cy="12" r="8" /><path d="M12 7.5V12l3 2" /></>,
 };
 
 export function Icon({ name, size = 18, className = '', filled = false }) {

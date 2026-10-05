@@ -16,7 +16,7 @@ export default {
         // paper surfaces (named ink-* for history: 900 = page, 800 = panel, lower = deeper tints)
         ink: { DEFAULT: '#F4F0E8', 900: '#F4F0E8', 800: '#FBF9F4', 700: '#EFEAE0', 600: '#E8E2D6', 500: '#D8D1C2' },
         line: 'rgba(27,26,23,0.16)',
-        fg: { DEFAULT: '#1B1A17', muted: '#5C584F', dim: '#8A8579' },
+        fg: { DEFAULT: '#1B1A17', muted: '#5C584F', dim: '#6E695E' }, // dim still clears 4.5:1 on paper
         mint: { DEFAULT: '#1F6B4A', dim: '#17523A', ink: '#FBF9F4' }, // felt green = a good spot
         amber: { DEFAULT: '#A8660B' },
         coral: { DEFAULT: '#C0321F' }, // card red

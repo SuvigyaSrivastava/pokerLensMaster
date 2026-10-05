@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // A scripted hand that drives the same interface as useLiveSession, with no camera, mic or server.
 // It exists so the product can be shown (and understood) in 30 seconds anywhere.
 
-const base = { hand_number: 1, hero_cards: [], board_cards: [], street: 'preflop', pot: 150, to_call: 100, opponents: 2, hero_folded: false, small_blind: 50, big_blind: 100, recent_actions: [] };
+const base = { history: [], hand_number: 1, hero_cards: [], board_cards: [], street: 'preflop', pot: 150, to_call: 100, opponents: 2, hero_folded: false, small_blind: 50, big_blind: 100, recent_actions: [] };
 
 const facts = (o) => ({ ok: true, equity_note: 'Simulated numbers for the demo.', ...o });
 
@@ -17,7 +17,7 @@ const SCRIPT = [
     state: { pot: 450, to_call: 200, opponents: 1, recent_actions: [{ actor: 'opp:Ravi', action: 'raise', amount: 300 }] },
     facts: facts({ equity_pct: 66.8, required_equity_pct: 30.8, to_call: 200, pot: 450, made_hand: 'AK suited', verdict_hint: 'Strong: raise for value, or at least call.' }) },
   { at: 10200, user: 'Coach, what should I do?' },
-  { at: 11000, tool: ['get_decision_facts', {}], latency: 1400 },
+  { at: 11000, tool: ['get_decision_facts', {}, 31], latency: 1400 },
   { at: 11600, coach: 'Raise. You’re about 67 percent against a random hand and only need 31 to call.' },
   { at: 15200, user: 'I’ll just call.' },
   { at: 16000, tool: ['record_action', { actor: 'hero', action: 'call', amount: 300 }],
@@ -30,7 +30,7 @@ const SCRIPT = [
     state: { pot: 1050, to_call: 400, recent_actions: [{ actor: 'opp:Ravi', action: 'raise', amount: 300 }, { actor: 'hero', action: 'call', amount: 300 }, { actor: 'opp:Ravi', action: 'bet', amount: 400 }] },
     facts: facts({ equity_pct: 68.5, required_equity_pct: 27.6, to_call: 400, pot: 1050, made_hand: 'High Card', verdict_hint: 'Strong: raise for value, or at least call.', outs: { count: 15, approx_hit_pct: 54 } }) },
   { at: 25500, user: 'What now?' },
-  { at: 26300, tool: ['get_decision_facts', {}], latency: 1300 },
+  { at: 26300, tool: ['get_decision_facts', {}, 28], latency: 1300 },
   { at: 26900, coach: 'Call or raise. Nut flush draw plus two overcards — fifteen outs, and you only need 28 percent.' },
 ];
 
@@ -45,6 +45,7 @@ export function useDemoSession() {
   const [speaking, setSpeaking] = useState(false);
   const [latency, setLatency] = useState(null);
   const [muted, setMuted] = useState(false);
+  const [replies, setReplies] = useState([]);
   const timers = useRef([]);
   const idc = useRef(0);
 
@@ -76,17 +77,17 @@ export function useDemoSession() {
 
   const start = useCallback(() => {
     clear();
-    setLog([]); setTools([]); setFacts(null); setNotice(null); setLatency(null); setMuted(false);
+    setLog([]); setTools([]); setFacts(null); setNotice(null); setLatency(null); setMuted(false); setReplies([]);
     setState(null);
     setStatus('connecting');
     later(500, () => { setStatus('live'); setState({ ...base }); });
     SCRIPT.forEach((s) => later(s.at, () => {
       if (s.coach) say('coach', s.coach);
       if (s.user) say('user', s.user);
-      if (s.tool) setTools((p) => [...p.slice(-29), { id: ++idc.current, name: s.tool[0], args: s.tool[1], ok: true, at: Date.now() }]);
+      if (s.tool) setTools((p) => [...p.slice(-29), { id: ++idc.current, name: s.tool[0], args: s.tool[1], ms: s.tool[2] ?? 0.4, ok: true, at: Date.now() }]);
       if (s.state) setState((p) => ({ ...(p || base), ...s.state }));
       if (s.facts) setFacts(s.facts);
-      if (s.latency) setLatency(s.latency);
+      if (s.latency) { setLatency(s.latency); setReplies((p) => [...p, s.latency]); }
     }));
   }, [clear, say]);
 
@@ -102,7 +103,13 @@ export function useDemoSession() {
   const newHand = useCallback(() => {
     clear();
     setFacts(null);
-    setState((p) => ({ ...base, hand_number: (p?.hand_number || 1) + 1 }));
+    setState((p) => ({
+      ...base,
+      hand_number: (p?.hand_number || 1) + 1,
+      history: p?.hero_cards?.length === 2
+        ? [...(p.history || []), { hand: p.hand_number, hero_cards: p.hero_cards, board_cards: p.board_cards, reached: p.street, pot: p.pot, hero_folded: false, actions: [] }]
+        : (p?.history || []),
+    }));
   }, [clear]);
 
   const noop = useCallback(() => {}, []);
@@ -110,7 +117,8 @@ export function useDemoSession() {
   return {
     demo: true,
     status, state, facts: factsNow, log, tools, notice, level, speaking, latency, muted,
-    start, stop, attachVideo: noop, advise, scan: noop, newHand, setField, pttStart: noop, pttEnd: noop, setMuted,
+    camera: { on: false, facing: 'environment', count: 0 }, stats: { frames: 0, kb: 0, kbps: 0, replies },
+    start, stop, attachVideo: noop, advise, scan: noop, sendText: noop, flipCamera: noop, newHand, setField, pttStart: noop, pttEnd: noop, setMuted,
     clearNotice: () => setNotice(null),
   };
 }
